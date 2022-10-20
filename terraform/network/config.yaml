@@ -1,0 +1,17 @@
+context:
+  region: "ap-northeast-2"
+  vpc: 
+    "name": "mysql_vpc"
+  cidrs:
+    "primary": "192.168.0.0/16"
+
+vpc: 
+  name: "${vpc.name}"
+  cidr: "${cidrs.primary}"
+
+subnet_groups:
+  "public":
+    map_public_ip_on_launch: true
+    cidr: "192.168.0.0/24"
+    az_id: "apne2-az1"
+   
