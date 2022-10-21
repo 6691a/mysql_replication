@@ -24,26 +24,6 @@ resource "aws_subnet" "subnet"{
 
 }
 
-
-resource "aws_route_table" "mysql_public" {
-  vpc_id = aws_vpc.vpc.id
-  tags = {
-    Name = aws_vpc.vpc.tags.Name
-  }
-  route {
-    cidr_block = "10.0.1.0/24"
-    gateway_id = aws_internet_gateway.gw.id
-  }
-}
-
-resource "aws_route_table_association" "route_table_association_1" {
-  count = length(local.config.subnet_groups)
-  
-  route_table_id = aws_route_table.mysql_public.id
-  subnet_id      =  aws_subnet.subnet["public"].id
-
-}
-
 resource "aws_internet_gateway" "igw" {
     vpc_id = aws_vpc.vpc.id
 
@@ -52,18 +32,59 @@ resource "aws_internet_gateway" "igw" {
     }
 }
 
-# resource "aws_route" "route" {
-#   route_table_id = aws_route_table.mysql_public.id
+resource "aws_default_route_table" "public_route_table" {
+    default_route_table_id = aws_vpc.vpc.default_route_table_id
 
-#   destination_cidr_block = "0.0.0.0/0"
-#   depends_on                = [aws_route_table.mysql_public]
-#   vpc_peering_connection_id = "pcx-45ff3dc1"
+    route {
+        cidr_block = "0.0.0.0/0"
+        gateway_id = aws_internet_gateway.igw.id
+    }
 
-# }
+    tags = {
+        Name = "public route table"
+    }
+}
 
-
-# resource "aws_route" "r" {
-#   route_table_id            = "rtb-4fbb3ac4"
-#   destination_cidr_block    = "10.0.1.0/22"
+resource "aws_route_table_association" "public_route_tables" {
+  count = length(local.config.subnet_groups)
   
-# }
+  subnet_id      =  aws_subnet.subnet["public"].id
+  route_table_id = aws_default_route_table.public_route_table.id
+}
+
+resource "aws_security_group" "ssh" {
+  name        = "${aws_vpc.vpc.tags.Name}-ssh"
+  description = "Security Group for SSH"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress {
+    description = "Allow SSH from anywhere."
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+}
+
+resource "aws_security_group" "mysql" {
+  name        = "${aws_vpc.vpc.tags.Name}-mysql"
+  description = "Security Group for MySQL"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress {
+    description ="Allow MySQL from anywhere."   
+    from_port        = 3306
+    to_port          = 3306
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+   egress {
+    description = "Allow to communicate to the Internet."
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = [ "0.0.0.0/0" ]
+   }
+}
