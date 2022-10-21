@@ -15,6 +15,7 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "my_sql" {
+  count = 1
   ami = data.aws_ami.ubuntu.image_id
   instance_type = "t2.micro"
   subnet_id = local.subnets["public"].id
@@ -23,10 +24,22 @@ resource "aws_instance" "my_sql" {
   vpc_security_group_ids = [ 
     local.security["mysql"].id,
     local.security["ssh"].id,
-
   ]
 
   tags = {
-    Name = "${local.vpc.tags.Name}_mysql"
+    Name = "${local.vpc.tags.Name}_mysql${count.index}"
   }
+}
+
+resource "local_file" "inventory" {
+  filename = "../../ansible/inventory.inv"
+  content = <<EOF
+  [ec2]
+  %{ for index, instance in aws_instance.my_sql }mysql${index} ansible_host=${instance.public_ip}
+  %{ endfor }
+  EOF
+
+  depends_on = [
+    aws_instance.my_sql
+  ]
 }
