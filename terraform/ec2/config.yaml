@@ -1,3 +1,6 @@
 context:
   region: "ap-northeast-2"
+  pem: "mysql"
+
+
 
