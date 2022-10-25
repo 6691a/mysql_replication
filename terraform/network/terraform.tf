@@ -16,7 +16,10 @@ terraform {
 ###################################################
 locals {
   context = yamldecode(file(var.config_file)).context
-  config  = yamldecode(templatefile(var.config_file, local.context))
+  all  = yamldecode(templatefile(var.config_file, local.context))
+  vpc  = local.all.vpc
+  subnet_group = local.all.subnet_group
+
 }
 
 
