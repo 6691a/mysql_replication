@@ -5,28 +5,9 @@ resource "aws_vpc" "vpc" {
     Name = local.vpc.name
   }
 }
-# module "subnet_group" {
-#   source  = "tedilabs/network/aws//modules/subnet-group"
-#   version = "0.24.0"
-
-#   for_each = local.all.subnet_group
-
-#   name                    = "${aws_vpc.vpc.tags.Name}-${each.key}"
-#   vpc_id                  = aws_vpc.vpc.id
-#   map_public_ip_on_launch = try(each.value.map_public_ip_on_launch, false)
-
-#   subnets = {
-#     for idx, subnet in try(each.value.subnets, []) :
-#     "${aws_vpc.vpc.tags.Name}-${each.key}-${format("%03d", idx + 1)}/${regex("az[0-9]", subnet.az_id)}" => {
-#       cidr_block           = subnet.cidr
-#       availability_zone_id = subnet.az_id
-#     }
-#   }
-
-# }
 
 resource "aws_subnet" "private_subnet"{
-  for_each = {for subnet in local.subnet_group.private.subnets:  "private_${subnet.cidr}" => subnet}
+  for_each = {for subnet in local.subnet_group.private.subnets:  "${subnet.cidr}" => subnet}
   
   vpc_id = aws_vpc.vpc.id
 
@@ -41,13 +22,13 @@ resource "aws_subnet" "private_subnet"{
 }
 
 resource "aws_subnet" "public_subnet" {
-  for_each = {for subnet in local.subnet_group.public.subnets:  "public_${subnet.cidr}" => subnet}
+  for_each = {for subnet in local.subnet_group.public.subnets:  "${subnet.cidr}" => subnet}
 
   vpc_id = aws_vpc.vpc.id
 
  
-  cidr_block = each.key
-  availability_zone_id = each.value
+  cidr_block = each.value.cidr
+  availability_zone_id = each.value.az_id
 
   tags = {
     Name = "${aws_vpc.vpc.tags.Name}-public"
@@ -56,56 +37,88 @@ resource "aws_subnet" "public_subnet" {
   
 }
 
-# resource "aws_internet_gateway" "igw" {
-#     vpc_id = aws_vpc.vpc.id
+resource "aws_internet_gateway" "igw" {
+    vpc_id = aws_vpc.vpc.id
 
-#     tags = {
-#         Name = "Internet Gateway"
-#     }
-# }
+    tags = {
+        Name = "Internet Gateway"
+    }
+}
 
-# resource "aws_eip" "ngw_ip" {
-#     vpc = true
-# }
+resource "aws_eip" "ngw_ip" {
+  vpc = true
 
-# resource "aws_nat_gateway" "ngw" {
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_nat_gateway" "ngw" {
+  allocation_id = aws_eip.ngw_ip.id
+  # public subnet의 first(192.168.0.0/24) id 
+  subnet_id = aws_subnet.public_subnet[local.subnet_group.public.subnets[0].cidr].id
+
+  tags = {
+    Name = "MySQL_NAT Gateway"
+  }
+}
+
+
+resource "aws_route_table" "private_route_table" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    "Name" = "Private route table"
+  }
+}
+
+resource "aws_route_table_association" "private_route_tables" {
+  for_each = aws_subnet.private_subnet
   
-# }
+  subnet_id      =  each.value.id
+  route_table_id = aws_route_table.private_route_table.id
+}
+resource "aws_route" "private_rt_route" {
+    route_table_id              = aws_route_table.private_route_table.id
+    destination_cidr_block      = "0.0.0.0/0"
+    nat_gateway_id              = aws_nat_gateway.ngw.id
+}
 
-# resource "aws_default_route_table" "public_route_table" {
-#     default_route_table_id = aws_vpc.vpc.default_route_table_id
 
-#     route {
-#         cidr_block = "0.0.0.0/0"
-#         gateway_id = aws_internet_gateway.igw.id
-#     }
+resource "aws_default_route_table" "public_route_table" {
+  default_route_table_id = aws_vpc.vpc.default_route_table_id
 
-#     tags = {
-#         Name = "public route table"
-#     }
-# }
+    route {
+      cidr_block = "0.0.0.0/0"
+      gateway_id = aws_internet_gateway.igw.id
+    }
 
-# resource "aws_route_table_association" "public_route_tables" {
-#   count = length(local.config.subnet_groups)
+    tags = {
+      Name = "public route table"
+    }
+}
+
+resource "aws_route_table_association" "public_route_tables" {
+  for_each = aws_subnet.private_subnet
   
-#   subnet_id      =  aws_subnet.subnet["public"].id
-#   route_table_id = aws_default_route_table.public_route_table.id
-# }
+  subnet_id      =  each.value.id
+  route_table_id = aws_default_route_table.public_route_table.id
+}
 
-# resource "aws_security_group" "ssh" {
-#   name        = "${aws_vpc.vpc.tags.Name}-ssh"
-#   description = "Security Group for SSH"
-#   vpc_id      = aws_vpc.vpc.id
+resource "aws_security_group" "ssh" {
+  name        = "${aws_vpc.vpc.tags.Name}-ssh"
+  description = "Security Group for SSH"
+  vpc_id      = aws_vpc.vpc.id
 
-#   ingress {
-#     description = "Allow SSH from anywhere."
-#     from_port = 22
-#     to_port = 22
-#     protocol = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
+  ingress {
+    description = "Allow SSH from anywhere."
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   
-# }
+}
 
 # resource "aws_security_group" "mysql" {
 #   name        = "${aws_vpc.vpc.tags.Name}-mysql"
