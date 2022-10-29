@@ -13,9 +13,9 @@ subnet_group:
   "public":
     subnets:
     - {cidr: "192.168.0.0/24", az_id: "apne2-az1"}
-    - {cidr: "192.168.1.0/24", az_id: "apne2-az2"}
+    # - {cidr: "192.168.1.0/24", az_id: "apne2-az2"}
 
   "private":
     subnets:
     - {cidr: "192.168.100.0/24", az_id: "apne2-az1"}
-    - {cidr: "192.168.101.0/24", az_id: "apne2-az2"}
+    # - {cidr: "192.168.101.0/24", az_id: "apne2-az2"}
