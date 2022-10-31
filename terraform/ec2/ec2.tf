@@ -14,21 +14,56 @@ data "aws_ami" "ubuntu" {
    owners = ["099720109477"] # Canonical
 }
 
-resource "aws_instance" "my_sql" {
+resource "aws_instance" "public_ec2" {
   count = 1
   ami = data.aws_ami.ubuntu.image_id
   instance_type = "t2.micro"
-  subnet_id = local.subnets["public"].id
+  subnet_id = local.subnets.public[0].id
   key_name = aws_key_pair.mysql_pair.key_name
+  associate_public_ip_address =  false
 
   vpc_security_group_ids = [ 
-    local.security["mysql"].id,
-    local.security["ssh"].id,
+    local.security_group["mysql"].id,
+    local.security_group["ssh"].id,
   ]
 
   tags = {
-    Name = "${local.vpc.tags.Name}_mysql${count.index}"
+    Name = "public_ec2${count.index}"
   }
+}
+
+resource "aws_instance" "private_ec2" {
+  count = 1
+  ami = data.aws_ami.ubuntu.image_id
+  instance_type = "t2.micro"
+  subnet_id = local.subnets.private[0].id
+  key_name = aws_key_pair.mysql_pair.key_name
+  associate_public_ip_address =  false
+
+  vpc_security_group_ids = [ 
+    local.security_group["mysql"].id,
+    local.security_group["ssh"].id,
+  ]
+
+  tags = {
+    Name = "private_ec2${count.index}"
+  }
+}
+
+resource "aws_eip" "public_eip" {
+  count = length(aws_instance.public_ec2)
+  vpc = true
+
+  tags = {
+    Name    = "public_ec2_eip${count.index}"
+  }
+}
+
+resource "aws_eip_association" "public_eip_group" {
+  count = length(aws_instance.public_ec2)
+
+  instance_id   = aws_instance.public_ec2[count.index].id
+  allocation_id = aws_eip.public_eip[count.index].id
 }
 
 resource "local_file" "inventory" {
@@ -38,10 +73,10 @@ resource "local_file" "inventory" {
 ansible_ssh_private_key_file=./${local.context.pem}.pem
 ansible_user=ubuntu
 [ec2]
-%{ for index, instance in aws_instance.my_sql }mysql${index} ansible_host=${instance.public_ip}
+%{ for index, instance in aws_eip.public_eip }mysql${index} ansible_host=${instance.public_ip}
 %{ endfor }
   EOF
   depends_on = [
-    aws_instance.my_sql
+    aws_eip_association.public_eip_group
   ]
 }

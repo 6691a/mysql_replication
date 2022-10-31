@@ -45,26 +45,25 @@ resource "aws_internet_gateway" "igw" {
     }
 }
 
-# resource "aws_eip" "ngw_ip" {
-#   count = length(aws_subnet.public_subnet)
-#   vpc = true
+resource "aws_eip" "ngw_ip" {
+  count = length(aws_subnet.public_subnet)
+  vpc = true
 
-#   tags = {
-#     Name    = "mysql_eip"
-#     Service = var.prefix
-#   }
-# }
+  tags = {
+    Name    = "mysql_eip"
+  }
+}
 
-# resource "aws_nat_gateway" "ngw" {
-#   count = length(aws_eip.ngw_ip)
+resource "aws_nat_gateway" "ngw" {
+  count = length(aws_eip.ngw_ip)
 
-#   allocation_id = aws_eip.ngw_ip[count.index].id
-#   subnet_id = aws_subnet.public_subnet[local.subnet_group.public.subnets[count.index].cidr].id
+  allocation_id = aws_eip.ngw_ip[count.index].id
+  subnet_id = aws_subnet.public_subnet[local.subnet_group.public.subnets[count.index].cidr].id
 
-#   tags = {
-#     Name = "MySQL_NAT Gateway"
-#   }
-# }
+  tags = {
+    Name = "MySQL_NAT Gateway"
+  }
+}
 
 # # private route table
 resource "aws_route_table" "private_route_table" {
@@ -82,11 +81,11 @@ resource "aws_route_table_association" "private_route_tables" {
   route_table_id = aws_route_table.private_route_table.id
 }
 
-# resource "aws_route" "private_route" {
-#   route_table_id              = aws_route_table.private_route_table.id
-#   destination_cidr_block      = "0.0.0.0/0"
-#   nat_gateway_id              = aws_nat_gateway.ngw[0].id
-# }
+resource "aws_route" "private_route" {
+  route_table_id              = aws_route_table.private_route_table.id
+  destination_cidr_block      = "0.0.0.0/0"
+  nat_gateway_id              = aws_nat_gateway.ngw[0].id
+}
 
 # # public route table
 resource "aws_default_route_table" "public_route_table" {
@@ -109,39 +108,61 @@ resource "aws_route_table_association" "public_route_tables" {
   route_table_id = aws_default_route_table.public_route_table.id
 }
 
-# resource "aws_security_group" "ssh" {
-#   name        = "${aws_vpc.vpc.tags.Name}-ssh"
-#   description = "Security Group for SSH"
-#   vpc_id      = aws_vpc.vpc.id
+resource "aws_security_group" "ssh" {
+  name        = "${aws_vpc.vpc.tags.Name}-ssh"
+  description = "Security Group for SSH"
+  vpc_id      = aws_vpc.vpc.id
 
-#   ingress {
-#     description = "Allow SSH from anywhere."
-#     from_port = 22
-#     to_port = 22
-#     protocol = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-  
-# }
+  ingress {
+    description = "Allow SSH from anywhere."
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
-# # resource "aws_security_group" "mysql" {
-# #   name        = "${aws_vpc.vpc.tags.Name}-mysql"
-# #   description = "Security Group for MySQL"
-# #   vpc_id      = aws_vpc.vpc.id
+resource "aws_security_group" "http" {
+  name = "${aws_vpc.vpc.tags.Name}-http"
+  description = "Security Group for HTTP"
+  vpc_id = aws_vpc.vpc.id
+  ingress {
+    description = "Allow SSH from anywhere."
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-# #   ingress {
-# #     description ="Allow MySQL from anywhere."   
-# #     from_port        = 3306
-# #     to_port          = 3306
-# #     protocol = "tcp"
-# #     cidr_blocks = ["0.0.0.0/0"]
-# #   }
+  egress {
+    description = "Allow to communicate to the Internet."
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
 
-# #    egress {
-# #     description = "Allow to communicate to the Internet."
-# #     from_port = 0
-# #     to_port = 0
-# #     protocol = "-1"
-# #     cidr_blocks = [ "0.0.0.0/0" ]
-# #    }
-# # }
+ 
+}
+
+resource "aws_security_group" "mysql" {
+  name        = "${aws_vpc.vpc.tags.Name}-mysql"
+  description = "Security Group for MySQL"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress {
+    description ="Allow MySQL from anywhere."   
+    from_port        = 3306
+    to_port          = 3306
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow to communicate to the Internet."
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = [ "0.0.0.0/0" ]
+  }
+}
