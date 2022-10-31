@@ -28,7 +28,7 @@ resource "aws_instance" "public_ec2" {
   ]
 
   tags = {
-    Name = "public_ec2${count.index}"
+    Name = "public_ec2_${count.index}"
   }
 }
 
@@ -46,7 +46,7 @@ resource "aws_instance" "private_ec2" {
   ]
 
   tags = {
-    Name = "private_ec2${count.index}"
+    Name = "private_ec2_${count.index}"
   }
 }
 
@@ -72,11 +72,9 @@ resource "local_file" "inventory" {
 [ec2:vars]
 ansible_ssh_private_key_file=./${local.context.pem}.pem
 ansible_user=ubuntu
+ansible_ssh_common_args="-o ProxyCommand="ssh -o StrictHostKeyChecking=no -q ubuntu@${aws_eip.public_eip[0].public_ip} -o IdentityFile=./${local.context.pem}.pem -o port=22 -W %h:%p"" 
 [ec2]
-%{ for index, instance in aws_eip.public_eip }mysql${index} ansible_host=${instance.public_ip}
+%{ for index, instance in aws_instance.private_ec2}mysql${index} ansible_host=${instance.private_ip}
 %{ endfor }
   EOF
-  depends_on = [
-    aws_eip_association.public_eip_group
-  ]
 }
