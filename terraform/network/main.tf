@@ -45,12 +45,13 @@ resource "aws_internet_gateway" "igw" {
     }
 }
 
+# TODO: public_subnet 당 하나의 nat 개선
 resource "aws_eip" "ngw_ip" {
   count = length(aws_subnet.public_subnet)
   vpc = true
 
   tags = {
-    Name    = "mysql_eip"
+    Name    = "ngw_eip"
   }
 }
 

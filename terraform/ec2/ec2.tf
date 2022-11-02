@@ -33,7 +33,7 @@ resource "aws_instance" "public_ec2" {
 }
 
 resource "aws_instance" "private_ec2" {
-  count = 1
+  count = 0
   ami = data.aws_ami.ubuntu.image_id
   instance_type = "t2.micro"
   subnet_id = local.subnets.private[0].id
@@ -69,12 +69,25 @@ resource "aws_eip_association" "public_eip_group" {
 resource "local_file" "inventory" {
   filename = "../../ansible/inventory.inv"
   content = <<EOF
-[ec2:vars]
+%{ if length(aws_instance.private_ec2) != 0 ? true : false }
+[private_ec2:vars]
 ansible_ssh_private_key_file=./${local.context.pem}.pem
 ansible_user=ubuntu
 ansible_ssh_common_args="-o ProxyCommand="ssh -o StrictHostKeyChecking=no -q ubuntu@${aws_eip.public_eip[0].public_ip} -o IdentityFile=./${local.context.pem}.pem -o port=22 -W %h:%p"" 
-[ec2]
-%{ for index, instance in aws_instance.private_ec2}mysql${index} ansible_host=${instance.private_ip}
+
+[private_ec2]
+%{ for index, instance in aws_instance.private_ec2}private${index} ansible_host=${instance.private_ip}
 %{ endfor }
+%{ endif }
+
+%{ if length(aws_eip.public_eip) != 0 ? true : false }
+[public_ec2:vars]
+ansible_ssh_private_key_file=./${local.context.pem}.pem
+ansible_user=ubuntu
+
+[public_ec2]
+%{ for index, instance in aws_eip.public_eip}public${index} ansible_host=${instance.public_ip}
+%{ endfor }
+%{ endif }
   EOF
 }
