@@ -1,0 +1,10 @@
+# https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
+---
+
+- name: Include all var files
+  include_vars:
+    dir: vars/all
+    
+- import_playbook: ./playbook/docker/main.yaml
+- import_playbook: ./playbook/prometheus/node_exporter/main.yaml
+

@@ -1,0 +1,45 @@
+---
+# - name: Install Prometheus node_exporter
+#   hosts: all
+#   become: true
+#   vars_files:
+#   - variable.yaml
+
+- tasks:  
+  - name: download node_exporter package
+ 
+
+    get_url:
+      url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+      dest: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+  
+  - name: unpack node_exporter
+    unarchive:
+      src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+      dest: "/tmp/"
+      remote_src: yes
+
+  - name: copy node_exporter
+    copy:
+      src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+      dest: "{{ node_exporter_dir }}/node_exporter"
+      remote_src: yes
+      owner: root
+      group: root
+      mode: 0755
+
+  - name: setting systemd file
+    template:
+        src: templates/node_exporter.service.j2
+        dest: /etc/systemd/system/node_exporter.service
+        owner: root
+        group: root
+        mode: 0600
+
+  - name: start node_exporter service
+    systemd:
+      daemon_reload: yes
+      enabled: yes
+      state: started
+      name: node_exporter.service
+  
