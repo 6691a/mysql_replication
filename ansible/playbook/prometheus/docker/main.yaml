@@ -1,0 +1,5 @@
+---
+
+- name: docker setup prometheus
+  hosts: {{ prometheus_host }}
+  tasks:

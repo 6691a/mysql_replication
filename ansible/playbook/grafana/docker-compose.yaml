@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  grafana:
+    image: grafana/grafana:${GRAFANA_IMAGE_VERSION}
+    container_name: grafana
+    volumes:
+      - ~/prometheus/config/:/etc/prometheus/
+      - ~/prometheus/prometheus-volume:/prometheus
+    ports:
+      -  ${GRAFANA_HOST_PORT}:3000
+    networks:
+      - grafana
+    restart: ${GRAFANA_RESTART_LEVEL}
+
+networks:
+  grafana:
+    driver: bridge

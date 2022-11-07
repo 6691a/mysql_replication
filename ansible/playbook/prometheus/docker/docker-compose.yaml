@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  prometheus:
+    image: bitnami/prometheus:2.39.1
+    container_name: prometheus
+    volumes:
+      - ~/prometheus/config/:/etc/prometheus/
+      - ~/prometheus/prometheus-volume:/prometheus
+    ports:
+      - 9090:9090
+    command: 
+      - '--web.enable-lifecycle'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - prometheus
+    restart: always
+
+networks:
+  prometheus:
+    driver: bridge

@@ -4,7 +4,7 @@
 #   become: true
 
 - tasks:
-  - name: "Install PIP"
+  - name: "install pip"
     apt:
       name: 
       - "python3-pip"
@@ -12,7 +12,7 @@
       state: present
       update_cache: yes
 
-  - name: "Install Docker Dependency"
+  - name: "install docker dependency"
     apt:
       name: "{{ item }}"
       state: latest
@@ -22,17 +22,17 @@
     - gnupg
     - lsb-release
     
-  - name: "Add Docker GPG Key"
+  - name: "add docker gpg key"
     apt_key:
       url: https://download.docker.com/linux/ubuntu/gpg
       state: present
 
-  - name: "Add Docker Repository"
+  - name: "add docker repository"
     apt_repository:
       repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
       state: present
 
-  - name: Install Docker-ce
+  - name: install docker-ce
     apt:
       name: "{{ item }}"
       state: latest
@@ -44,14 +44,14 @@
     - docker-compose-plugin
  
 
-  - name: Add user to docker group
+  - name: add user to docker group
     user:
       name: "{{ user }}"
       groups: docker
       append: true
     with_items: "{{ user }}"
 
-  - name: Install docker Python Package
+  - name: install docker python package
     pip:
       name: docker
       state: present
